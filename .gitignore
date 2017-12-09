@@ -7,6 +7,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+.idea/
 env/
 venv/
 build/
@@ -16,7 +17,9 @@ downloads/
 eggs/
 lib/
 lib64/
+logs/
 parts/
+player_ids/
 sdist/
 var/
 *.egg-info/
