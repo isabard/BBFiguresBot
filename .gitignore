@@ -1,7 +1,10 @@
 .idea/
 venv/
 logs/
+per36_stats/
+pergame_stats/
 player_ids/
+totals_stats/
 
 replied_to.txt
 BBFiguresBot.iml

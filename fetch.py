@@ -4,8 +4,15 @@ import logging
 import os
 import pickle
 
+#Current season
+CURRENT_SEASON = '2017-18'
+
+# Max age of stat file (seconds) before replace
+MAX_AGE = 21600
+
 
 # Get a list of player_ids for a season and save it
+# Ids from each season are stored rather than a master list to minimize cases of duplicate name finds
 # Season should be format 'XXXX-XX', e.g. '1995-96' or '2010-11'
 # Return 0 for success, 1 for exception
 def get_ids(season: str) -> int:
@@ -14,8 +21,10 @@ def get_ids(season: str) -> int:
         raw = nba_py.player.PlayerList('00', season, 1)
         # trim raw data
         players = raw.json['resultSets'][0]['rowSet']
+
         # trim to list of player name and id pair
         player_id = dict(zip([r.pop(2) for r in players], [r.pop(0) for r in players]))
+
         # dump pickle of list to file
         with open(os.path.join(os.path.dirname(__file__), os.path.join("player_ids", season + ".txt")), "wb") as f:
             pickle.dump(player_id, f)
@@ -45,10 +54,16 @@ def check_ids(season: str) -> int:
 # Return player id or -1 for doesn't exist
 def get_player_id(name: str, season: str) -> int:
     # Make sure season list exists
-    check_ids(season)
+    exist = check_ids(season)
+
+    #If it doesn't, return -1
+    if exist == -1:
+        return -1
+
     # Open pickle
     with open(os.path.join(os.path.dirname(__file__), os.path.join("player_ids", season + ".txt")), "rb") as f:
         player_ids = pickle.load(f)
+
     # Return player_id
     if name in player_ids:
         return player_ids[name]
@@ -98,12 +113,12 @@ def get_player_id(name: str, season: str) -> int:
 #      'RANK_PG_BLK', 'RANK_PG_TOV', 'RANK_PG_PTS', 'RANK_PG_EFF']
 
 
-# Return a dict of dicts for a player's stats for career from his id
+# Return a dict of dicts for a player's pergame_stats for career from his id and a stat type (e.g. PerGame, Per36)
 # Each dict will have a key from above with a space and then season (if applicable)
 #   (e.g. 'SeasonTotalsRegularSeason 2016-17') with keys listed under it
-def get_player_pergame_stats(pid: int) -> dict:
+def get_player_stats(pid: int, stat_type: str) -> dict:
     # Get json
-    player_json = player.PlayerCareer(pid, 'PerGame', '00')
+    player_json = player.PlayerCareer(pid, stat_type, '00')
     pl = player_json.json['resultSets']
 
     # Form into usable dicts
@@ -121,3 +136,44 @@ def get_player_pergame_stats(pid: int) -> dict:
             player_stats[i['name']] = {}
 
     return player_stats
+
+
+# Save player pergame_stats to file
+# Takes player id, a type (e.g. PerGame, Per36), and a filename then gets stats and saves it
+# File will be saved in type_stats dir with name pid.txt
+def save_stats(pid: int, stat_type: str, filename: str):
+    # dump pickle of list to file
+    stats = get_player_stats(pid, stat_type)
+    with open(filename, "wb") as f:
+        pickle.dump(stats, f)
+
+
+# Checks if a stats file exists or is too old (for current season) for a given player name, season, and stat type
+# If it does not exist or is too old, does a new fetch
+# Otherwise, does nothing else
+# Returns player id (-1 if not found)
+def check_stats(name: str, season: str, stat_type: str) -> int:
+    # Get player id
+    pid = get_player_id(name, season)
+
+    # Return -1 if not found
+    if pid == -1:
+        return pid
+
+    # Filename
+    filename = os.path.join(os.path.dirname(__file__), os.path.join(stat_type + "_stats", pid + ".txt"))
+
+    # Check if file exists
+    if os.path.exists(filename):
+        # Check if current season
+        if season == CURRENT_SEASON:
+            # Check if file too old
+            if os.path.getmtime(filename) >= MAX_AGE:
+                # If so, get new stats
+                save_stats(pid, stat_type, filename)
+    # If it doesn't, get stats
+    else:
+        save_stats(pid, stat_type, filename)
+
+    return pid
+
