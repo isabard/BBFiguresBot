@@ -16,9 +16,14 @@ MAX_AGE = 21600
 # Season should be format 'XXXX-XX', e.g. '1995-96' or '2010-11'
 # Return 0 for success, 1 for exception
 def get_ids(season: str) -> int:
+    # Check for current season
+    isCurrent = 1
+    if not CURRENT_SEASON == season:
+        isCurrent = 0
+
     # get list of all players
     try:
-        raw = nba_py.player.PlayerList('00', season, 1)
+        raw = nba_py.player.PlayerList('00', season, isCurrent)
         # trim raw data
         players = raw.json['resultSets'][0]['rowSet']
 
@@ -138,30 +143,50 @@ def get_player_stats(pid: int, stat_type: str) -> dict:
     return player_stats
 
 
-# Save player pergame_stats to file
-# Takes player id, a type (e.g. PerGame, Per36), and a filename then gets stats and saves it
+# Save player stats to file
+# Takes player id and a type (e.g. PerGame, Per36) and saves it
 # File will be saved in type_stats dir with name pid.txt
-def save_stats(pid: int, stat_type: str, filename: str):
+def save_stats(pid: int, stat_type: str):
+    # Filename
+    filename = os.path.join(os.path.dirname(__file__), os.path.join(stat_type.lower() + "_stats", str(pid) + ".txt"))
+
     # dump pickle of list to file
     stats = get_player_stats(pid, stat_type)
-    with open(filename, "wb") as f:
+    with open(filename, "wb+") as f:
         pickle.dump(stats, f)
 
 
-# Checks if a stats file exists or is too old (for current season) for a given player name, season, and stat type
-# If it does not exist or is too old, does a new fetch
-# Otherwise, does nothing else
-# Returns player id (-1 if not found)
-def check_stats(name: str, season: str, stat_type: str) -> int:
+# Open player stats from file
+# Takes player id and a type (e.g. PerGame, Per36) and returns the dict
+# Will do work of checking that stats exists
+def open_stats(name: str, season: str, stat_type: str) -> dict:
     # Get player id
     pid = get_player_id(name, season)
 
+    # Filename
+    filename = os.path.join(os.path.dirname(__file__), os.path.join(stat_type.lower() + "_stats", str(pid) + ".txt"))
+
+    # Check if the file doesn't exist
+    if not pid == check_stats(pid, season, stat_type):
+        # If not, save them
+        save_stats(pid, stat_type)
+
+    # Open it and return
+    with open(filename, "rb") as f:
+        return pickle.load(f)
+
+
+# Checks if a stats file exists or is too old (for current season) for a given player id, season, and stat type
+# If it does not exist or is too old, does a new fetch
+# Otherwise, does nothing else
+# Returns player id (-1 if not found)
+def check_stats(pid: int, season: str, stat_type: str) -> int:
     # Return -1 if not found
     if pid == -1:
         return pid
 
     # Filename
-    filename = os.path.join(os.path.dirname(__file__), os.path.join(stat_type + "_stats", pid + ".txt"))
+    filename = os.path.join(os.path.dirname(__file__), os.path.join(stat_type.lower() + "_stats", str(pid) + ".txt"))
 
     # Check if file exists
     if os.path.exists(filename):
@@ -170,10 +195,10 @@ def check_stats(name: str, season: str, stat_type: str) -> int:
             # Check if file too old
             if os.path.getmtime(filename) >= MAX_AGE:
                 # If so, get new stats
-                save_stats(pid, stat_type, filename)
+                save_stats(pid, stat_type)
     # If it doesn't, get stats
     else:
-        save_stats(pid, stat_type, filename)
+        save_stats(pid, stat_type)
 
     return pid
 
