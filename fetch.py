@@ -16,6 +16,7 @@ UNNEEDED_ROWS = ["PLAYER_ID", "LEAGUE_ID", "TEAM_ID", "ORGANIZATION_ID"]
 # Rows to rename for printing
 NEW_ROW_NAMES = {"SEASON_ID": "SEASON", "TEAM_ABBREVIATION": "TEAM", "PLAYER_AGE": "AGE"}
 
+
 # Get a list of player_ids for a season and save it
 # Ids from each season are stored rather than a master list to minimize cases of duplicate name finds
 # Season should be format 'XXXX-XX', e.g. '1995-96' or '2010-11'
@@ -41,7 +42,7 @@ def get_ids(season: str) -> int:
         return 0
     # Record exception if it occurs
     except nba_py.player.PlayerNotFoundException as err:
-        logging.basicConfig(os.path.join(os.path.dirname(__file__), os.path.join("logs", "fetch.log")),
+        logging.basicConfig(filename=os.path.join(os.path.dirname(__file__), os.path.join("logs", "fetch.log")),
                             level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
         logger = logging.getLogger(__name__)
         logger.error(err)
@@ -175,9 +176,6 @@ def dict_to_string(stats: dict, dict_name: str):
     # Remove useless columns from dict
     for header in UNNEEDED_ROWS:
         st.pop(header, None)
-
-    # Rename some row names
-
 
     # Add header row
     for header in st.keys():
