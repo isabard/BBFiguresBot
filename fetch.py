@@ -4,12 +4,17 @@ import logging
 import os
 import pickle
 
-#Current season
+# Current season
 CURRENT_SEASON = '2017-18'
 
 # Max age of stat file (seconds) before replace
 MAX_AGE = 21600
 
+# Rows to remove from printed dicts
+UNNEEDED_ROWS = ["PLAYER_ID", "LEAGUE_ID", "TEAM_ID", "ORGANIZATION_ID"]
+
+# Rows to rename for printing
+NEW_ROW_NAMES = {"SEASON_ID": "SEASON", "TEAM_ABBREVIATION": "TEAM", "PLAYER_AGE": "AGE"}
 
 # Get a list of player_ids for a season and save it
 # Ids from each season are stored rather than a master list to minimize cases of duplicate name finds
@@ -61,7 +66,7 @@ def get_player_id(name: str, season: str) -> int:
     # Make sure season list exists
     exist = check_ids(season)
 
-    #If it doesn't, return -1
+    # If it doesn't, return -1
     if exist == -1:
         return -1
 
@@ -75,47 +80,6 @@ def get_player_id(name: str, season: str) -> int:
     # If it doesn't exist, return -1
     else:
         return -1
-
-
-# Anatomy of the JSON retrieved from PlayerCareer
-# - 'SeasonTotalsRegularSeason'
-#   - ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM',
-#       'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK',
-#       'TOV', 'PF', 'PTS']
-# - 'CareerTotalsRegularSeason'
-#   - ['PLAYER_ID', 'LEAGUE_ID', 'Team_ID', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM',
-#      'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS']
-# - 'SeasonTotalsPostSeason'
-#   - ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS',
-#      'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST',
-#      'STL', 'BLK', 'TOV', 'PF', 'PTS']
-# - 'CareerTotalsPostSeason'
-#   - ['PLAYER_ID', 'LEAGUE_ID', 'Team_ID', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM',
-#      'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS']
-# - 'SeasonTotalsAllStarSeason'
-#   - ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS',
-#      'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST',
-#      'STL', 'BLK', 'TOV', 'PF', 'PTS']
-# - 'CareerTotalsAllStarSeason'
-#   - ['PLAYER_ID', 'LEAGUE_ID', 'Team_ID', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM',
-#      'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS']
-# - 'SeasonTotalsCollegeSeason'
-#   - ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'ORGANIZATION_ID', 'SCHOOL_NAME', 'PLAYER_AGE', 'GP', 'GS', 'MIN', 'FGM',
-#      'FGA', 'FG_PCT', 'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK',
-#      'TOV', 'PF', 'PTS']
-# - 'CareerTotalsCollegeSeason'
-#   - ['PLAYER_ID', 'LEAGUE_ID', 'ORGANIZATION_ID', 'GP', 'GS', 'MIN', 'FGM', 'FGA', 'FG_PCT', 'FG3M', 'FG3A',
-#      'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PTS']
-# - 'SeasonRankingsRegularSeason'
-#   - ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'RANK_PG_MIN',
-#      'RANK_PG_FGM', 'RANK_PG_FGA', 'RANK_FG_PCT', 'RANK_PG_FG3M', 'RANK_PG_FG3A', 'RANK_FG3_PCT', 'RANK_PG_FTM',
-#      'RANK_PG_FTA', 'RANK_FT_PCT', 'RANK_PG_OREB', 'RANK_PG_DREB', 'RANK_PG_REB', 'RANK_PG_AST', 'RANK_PG_STL',
-#      'RANK_PG_BLK', 'RANK_PG_TOV', 'RANK_PG_PTS', 'RANK_PG_EFF']
-# - 'SeasonRankingsPostSeason'
-#   - ['PLAYER_ID', 'SEASON_ID', 'LEAGUE_ID', 'TEAM_ID', 'TEAM_ABBREVIATION', 'PLAYER_AGE', 'GP', 'GS', 'RANK_PG_MIN',
-#      'RANK_PG_FGM', 'RANK_PG_FGA', 'RANK_FG_PCT', 'RANK_PG_FG3M', 'RANK_PG_FG3A', 'RANK_FG3_PCT', 'RANK_PG_FTM',
-#      'RANK_PG_FTA', 'RANK_FT_PCT', 'RANK_PG_OREB', 'RANK_PG_DREB', 'RANK_PG_REB', 'RANK_PG_AST', 'RANK_PG_STL',
-#      'RANK_PG_BLK', 'RANK_PG_TOV', 'RANK_PG_PTS', 'RANK_PG_EFF']
 
 
 # Return a dict of dicts for a player's pergame_stats for career from his id and a stat type (e.g. PerGame, Per36)
@@ -202,3 +166,48 @@ def check_stats(pid: int, season: str, stat_type: str) -> int:
 
     return pid
 
+
+# Return a table formatted string for a PlayerCareer dict
+def dict_to_string(stats: dict, dict_name: str):
+    st = stats[dict_name]
+    stat_string = ""
+
+    # Remove useless columns from dict
+    for header in UNNEEDED_ROWS:
+        st.pop(header, None)
+
+    # Rename some row names
+
+
+    # Add header row
+    for header in st.keys():
+        stat_string += header + "|"
+
+    # Remove last |
+    stat_string = stat_string[:-1]
+
+    # New line
+    stat_string += "\n"
+
+    # Add cell formatting
+    for i in range(0, len(st)):
+        stat_string += ":-:" + "|"
+
+    # Remove last |
+    stat_string = stat_string[:-1]
+
+    # New line
+    stat_string += "\n"
+
+    # Add values
+    for header in st.keys():
+        stat_string += str(st[header]) + "|"
+
+    # Remove last |
+    stat_string = stat_string[:-1]
+
+    # Rename some rows
+    for header in NEW_ROW_NAMES.keys():
+        stat_string = stat_string.replace(header, NEW_ROW_NAMES[header])
+
+    return stat_string
