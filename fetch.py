@@ -3,6 +3,7 @@ from nba_py import player
 import logging
 import os
 import pickle
+import re
 
 # Current season
 CURRENT_SEASON = '2017-18'
@@ -11,25 +12,18 @@ CURRENT_SEASON = '2017-18'
 MAX_AGE = 21600
 
 # Rows to remove from printed dicts
-UNNEEDED_ROWS = ["PLAYER_ID", "LEAGUE_ID", "TEAM_ID", "ORGANIZATION_ID"]
+UNNEEDED_ROWS = ["PLAYER_ID", "LEAGUE_ID", "TEAM_ID", "Team_ID", "ORGANIZATION_ID"]
 
 # Rows to rename for printing
 NEW_ROW_NAMES = {"SEASON_ID": "SEASON", "TEAM_ABBREVIATION": "TEAM", "PLAYER_AGE": "AGE"}
 
 
-# Get a list of player_ids for a season and save it
-# Ids from each season are stored rather than a master list to minimize cases of duplicate name finds
-# Season should be format 'XXXX-XX', e.g. '1995-96' or '2010-11'
+# Get a list of player_ids and save it
 # Return 0 for success, 1 for exception
-def get_ids(season: str) -> int:
-    # Check for current season
-    isCurrent = 1
-    if not CURRENT_SEASON == season:
-        isCurrent = 0
-
+def get_ids() -> int:
     # get list of all players
     try:
-        raw = nba_py.player.PlayerList('00', season, isCurrent)
+        raw = nba_py.player.PlayerList('00', CURRENT_SEASON, 0)
         # trim raw data
         players = raw.json['resultSets'][0]['rowSet']
 
@@ -37,7 +31,7 @@ def get_ids(season: str) -> int:
         player_id = dict(zip([r.pop(2) for r in players], [r.pop(0) for r in players]))
 
         # dump pickle of list to file
-        with open(os.path.join(os.path.dirname(__file__), os.path.join("player_ids", season + ".txt")), "wb") as f:
+        with open(os.path.join(os.path.dirname(__file__), "player_ids.txt"), "wb") as f:
             pickle.dump(player_id, f)
         return 0
     # Record exception if it occurs
@@ -49,30 +43,30 @@ def get_ids(season: str) -> int:
         return 1
 
 
-# Check if a file exists for a season of player_ids
+# Check if player_ids exists
 # If it does not, call get_ids
 # Return 0 for success, 1 for exception
-def check_ids(season: str) -> int:
+def check_ids() -> int:
     # If it exists, return
-    if os.path.exists(os.path.join(os.path.dirname(__file__), os.path.join("player_ids", season + ".txt"))):
+    if os.path.exists(os.path.join(os.path.dirname(__file__), "player_ids.txt")):
         return 0
     # Otherwise, get list
     else:
-        return get_ids(season)
+        return get_ids()
 
 
 # Get a player's id from his name and a season
 # Return player id or -1 for doesn't exist
 def get_player_id(name: str, season: str) -> int:
     # Make sure season list exists
-    exist = check_ids(season)
+    exist = check_ids()
 
     # If it doesn't, return -1
     if exist == -1:
         return -1
 
     # Open pickle
-    with open(os.path.join(os.path.dirname(__file__), os.path.join("player_ids", season + ".txt")), "rb") as f:
+    with open(os.path.join(os.path.dirname(__file__), "player_ids.txt"), "rb") as f:
         player_ids = pickle.load(f)
 
     # Return player_id
@@ -169,7 +163,7 @@ def check_stats(pid: int, season: str, stat_type: str) -> int:
 
 
 # Return a table formatted string for a PlayerCareer dict
-def dict_to_string(stats: dict, dict_name: str):
+def dict_to_string(stats: dict, dict_name: str) -> str:
     st = stats[dict_name]
     stat_string = ""
 
@@ -209,3 +203,76 @@ def dict_to_string(stats: dict, dict_name: str):
         stat_string = stat_string.replace(header, NEW_ROW_NAMES[header])
 
     return stat_string
+
+
+# Take in a string request for a stat table and return a string of that table
+# Request format: Get PLAYER_NAME's SEASON SEASON_TYPE STAT_TYPE TOTAL_OR_RANKINGS
+# PLAYER NAME: e.g. Paul Pierce
+# SEASON: e.g. 2008-09 or career
+# SEASON TYPE: regular season/postseason/college season/allstar season
+# STAT TYPE: totals/per game/ per 36
+# TOTAL OR RANKINGS: totals/rankings
+# Total request e.g.: Get Paul Pierce's 2008-09 regular season per game totals
+#               e.g.: Get Kevin Garnett's career postseason per 36 totals
+def get_stat_table(request: str) -> str:
+    # Lowercase version for searching
+    req_low = request.lower()
+
+    # Extract player name
+    try:
+        player_name = re.search("Get (.*)'s ", request).group(1)
+    except AttributeError:
+        raise Exception("No name found!")
+
+    # Extract season
+    try:
+        season = re.search("'s (\d{4}-\d{2}) ", request).group(1)
+    except AttributeError:
+        season = ""
+
+    # dict_name
+    dict_name = ""
+
+    # Determine if career or season
+    if "career" in req_low:
+        dict_name += "Career"
+    else:
+        dict_name += "Season"
+
+    # Determine if rankings or totals
+    if "rankings" in req_low:
+        dict_name += "Rankings"
+    else:
+        dict_name += "Totals"
+
+    # Determine if regular/post/college/allstar
+    if "regular" in req_low:
+        dict_name += "RegularSeason"
+    elif "postseason" in req_low:
+        dict_name += "PostSeason"
+    elif "college" in req_low:
+        dict_name += "CollegeSeason"
+    elif "allstar" in req_low:
+        dict_name += "AllStarSeason"
+    else:
+        raise Exception("No season type found!")
+
+    # Add season if applicable
+    if len(season) > 0:
+        dict_name += " " + season
+    else:
+        season = CURRENT_SEASON
+
+    # Get stat type
+    if "per game" in req_low:
+        stat_type = "PerGame"
+    elif "per 36" in req_low:
+        stat_type = "Per36"
+    else:
+        stat_type = "Totals"
+
+    # Get player dict
+    player_dict = open_stats(player_name, season, stat_type)
+
+    # Return string of table
+    return dict_to_string(player_dict, dict_name)
