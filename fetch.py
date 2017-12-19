@@ -17,6 +17,15 @@ UNNEEDED_ROWS = ["PLAYER_ID", "LEAGUE_ID", "TEAM_ID", "Team_ID", "ORGANIZATION_I
 # Rows to rename for printing
 NEW_ROW_NAMES = {"SEASON_ID": "SEASON", "TEAM_ABBREVIATION": "TEAM", "PLAYER_AGE": "AGE"}
 
+# Alternate matches for request keywords
+REGULAR_SEASON = ["regular season", "regularseason", "reg season", "regseason"]
+POSTSEASON = ["postseason", "post season", "playoffs", "play offs"]
+COLLEGE_SEASON = ["college", "college season", "collegeseason", "ncaa", "college career", "ncaa career"]
+ALLSTAR = ["allstar season", "allstarseason", "allstar"]
+PERGAME = ["pergame", "per game", "each game", "p game"]
+PER36 = ["per36", "per 36", "p 36"]
+RANKINGS = ["rankings", "rank", "ranks"]
+
 
 # Get a list of player_ids and save it
 # Return 0 for success, 1 for exception
@@ -55,9 +64,9 @@ def check_ids() -> int:
         return get_ids()
 
 
-# Get a player's id from his name and a season
+# Get a player's id from his name
 # Return player id or -1 for doesn't exist
-def get_player_id(name: str, season: str) -> int:
+def get_player_id(name: str) -> int:
     # Make sure season list exists
     exist = check_ids()
 
@@ -120,7 +129,7 @@ def save_stats(pid: int, stat_type: str):
 # Will do work of checking that stats exists
 def open_stats(name: str, season: str, stat_type: str) -> dict:
     # Get player id
-    pid = get_player_id(name, season)
+    pid = get_player_id(name)
 
     # Filename
     filename = os.path.join(os.path.dirname(__file__), os.path.join(stat_type.lower() + "_stats", str(pid) + ".txt"))
@@ -240,19 +249,19 @@ def get_stat_table(request: str) -> str:
         dict_name += "Season"
 
     # Determine if rankings or totals
-    if "rankings" in req_low:
+    if any(i in req_low for i in RANKINGS):
         dict_name += "Rankings"
     else:
         dict_name += "Totals"
 
     # Determine if regular/post/college/allstar
-    if "regular" in req_low:
+    if any(i in req_low for i in REGULAR_SEASON):
         dict_name += "RegularSeason"
-    elif "postseason" in req_low:
+    elif any(i in req_low for i in POSTSEASON):
         dict_name += "PostSeason"
-    elif "college" in req_low:
+    elif any(i in req_low for i in COLLEGE_SEASON):
         dict_name += "CollegeSeason"
-    elif "allstar" in req_low:
+    elif any(i in req_low for i in ALLSTAR):
         dict_name += "AllStarSeason"
     else:
         raise Exception("No season type found!")
@@ -260,13 +269,14 @@ def get_stat_table(request: str) -> str:
     # Add season if applicable
     if len(season) > 0:
         dict_name += " " + season
+    # Otherwise set to not current season
     else:
-        season = CURRENT_SEASON
+        season = -1
 
     # Get stat type
-    if "per game" in req_low:
+    if any(i in req_low for i in PERGAME):
         stat_type = "PerGame"
-    elif "per 36" in req_low:
+    elif any(i in req_low for i in PER36):
         stat_type = "Per36"
     else:
         stat_type = "Totals"
